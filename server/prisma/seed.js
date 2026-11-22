@@ -1,0 +1,10 @@
+import 'dotenv/config';
+import bcrypt from 'bcryptjs';
+import {PrismaClient} from '@prisma/client';
+const prisma=new PrismaClient();
+const email=process.env.SEED_EMAIL||'demo@zyvora.local';
+const password=process.env.SEED_PASSWORD||'ChangeMe123!';
+const user=await prisma.user.upsert({where:{email},update:{},create:{name:'ZYVORA Demo',email,passwordHash:await bcrypt.hash(password,12)}});
+const workspace=await prisma.workspace.upsert({where:{slug:'zyvora-demo'},update:{},create:{name:'ZYVORA Demo Workspace',slug:'zyvora-demo',industry:'Tecnologia',primaryGoal:'Automatizar operações'}});
+await prisma.membership.upsert({where:{userId_workspaceId:{userId:user.id,workspaceId:workspace.id}},update:{role:'OWNER'},create:{userId:user.id,workspaceId:workspace.id,role:'OWNER'}});
+console.log(`Seeded ${email} / ${password}`);await prisma.$disconnect();

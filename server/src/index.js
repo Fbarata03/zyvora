@@ -1,0 +1,13 @@
+import 'dotenv/config';
+import express from 'express';import cors from 'cors';import helmet from 'helmet';import morgan from 'morgan';import cookieParser from 'cookie-parser';
+import rateLimit from 'express-rate-limit';
+import {prisma} from './lib/prisma.js';import {redis} from './lib/redis.js';
+import authRoutes from './routes/auth.js';import workspaceRoutes from './routes/workspaces.js';import aiRoutes from './routes/ai.js';import operationsRoutes from './routes/operations.js';
+const app=express();app.set('trust proxy',1);app.use(helmet());app.use(cors({origin:(process.env.APP_ORIGIN||'http://localhost:5173').split(','),credentials:true}));app.use(express.json({limit:'1mb'}));app.use(cookieParser());app.use(morgan('tiny'));
+app.get('/health',async(req,res)=>{try{await prisma.$queryRaw`SELECT 1`;await redis.ping();res.json({status:'ok',service:'zyvora-api',database:'connected',queue:'connected',timestamp:new Date().toISOString()});}catch{res.status(503).json({status:'degraded'});}});
+app.use('/api/auth',rateLimit({windowMs:15*60*1000,limit:100,standardHeaders:true,legacyHeaders:false}),authRoutes);
+app.use('/api/workspaces',workspaceRoutes);app.use('/api/ai',aiRoutes);app.use('/api',operationsRoutes);
+app.use((req,res)=>res.status(404).json({error:'Endpoint não encontrado.'}));
+app.use((error,req,res,next)=>{if(error?.name==='ZodError')return res.status(400).json({error:'Dados inválidos.',details:error.issues});console.error(error);res.status(500).json({error:process.env.NODE_ENV==='production'?'Erro interno do servidor.':error.message});});
+const port=Number(process.env.PORT||4000);const server=app.listen(port,()=>console.log(`ZYVORA API listening on :${port}`));
+async function shutdown(){server.close();await prisma.$disconnect();await redis.quit();process.exit(0);}process.on('SIGTERM',shutdown);process.on('SIGINT',shutdown);

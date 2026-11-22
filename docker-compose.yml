@@ -1,0 +1,55 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: zyvora
+      POSTGRES_PASSWORD: zyvora_dev_password
+      POSTGRES_DB: zyvora
+    ports: ["5432:5432"]
+    volumes: ["zyvora_postgres:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U zyvora -d zyvora"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports: ["6379:6379"]
+    volumes: ["zyvora_redis:/data"]
+    command: ["redis-server", "--appendonly", "yes"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+  api:
+    build: ./server
+    restart: unless-stopped
+    env_file: ./server/.env
+    ports: ["4000:4000"]
+    depends_on:
+      postgres: {condition: service_healthy}
+      redis: {condition: service_healthy}
+    command: sh -c "npx prisma generate && npx prisma db push && npm run start"
+  worker:
+    build: ./server
+    restart: unless-stopped
+    env_file: ./server/.env
+    depends_on:
+      postgres: {condition: service_healthy}
+      redis: {condition: service_healthy}
+    command: sh -c "npx prisma generate && npm run worker"
+  frontend:
+    image: node:20-alpine
+    working_dir: /app
+    volumes: [".:/app", "/app/node_modules"]
+    environment:
+      VITE_API_URL: http://localhost:4000/api
+    ports: ["5173:5173"]
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
+    depends_on: [api]
+volumes:
+  zyvora_postgres:
+  zyvora_redis:
