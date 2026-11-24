@@ -8,6 +8,6 @@ app.get('/health',async(req,res)=>{try{await prisma.$queryRaw`SELECT 1`;await re
 app.use('/api/auth',rateLimit({windowMs:15*60*1000,limit:100,standardHeaders:true,legacyHeaders:false}),authRoutes);
 app.use('/api/workspaces',workspaceRoutes);app.use('/api/ai',aiRoutes);app.use('/api',operationsRoutes);
 app.use((req,res)=>res.status(404).json({error:'Endpoint não encontrado.'}));
-app.use((error,req,res,next)=>{if(error?.name==='ZodError')return res.status(400).json({error:'Dados inválidos.',details:error.issues});console.error(error);res.status(500).json({error:process.env.NODE_ENV==='production'?'Erro interno do servidor.':error.message});});
+app.use((error,req,res,next)=>{if(error?.name==='ZodError')return res.status(400).json({error:'Dados inválidos.',details:error.issues});if(error?.name==='AIProviderError'){console.error(error.message);return res.status(error.status||502).json({error:error.message});}console.error(error);res.status(500).json({error:process.env.NODE_ENV==='production'?'Erro interno do servidor.':error.message});});
 const port=Number(process.env.PORT||4000);const server=app.listen(port,()=>console.log(`ZYVORA API listening on :${port}`));
 async function shutdown(){server.close();await prisma.$disconnect();await redis.quit();process.exit(0);}process.on('SIGTERM',shutdown);process.on('SIGINT',shutdown);

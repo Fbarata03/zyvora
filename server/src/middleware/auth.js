@@ -20,3 +20,7 @@ export async function workspaceAccess(req,res,next) {
   } catch(nextError) { next(nextError); }
 }
 export const requireRole = (...roles) => (req,res,next) => roles.includes(req.membership?.role) ? next() : res.status(403).json({ error:'Permissões insuficientes.' });
+// VIEWER é só de leitura; MEMBER pode criar e editar rascunhos; ativar, aprovar e gerir integrações/equipa é só OWNER/ADMIN.
+export const canWrite = requireRole('OWNER','ADMIN','MEMBER');
+export const canManage = requireRole('OWNER','ADMIN');
+export const isManager = (membership) => ['OWNER','ADMIN'].includes(membership?.role);

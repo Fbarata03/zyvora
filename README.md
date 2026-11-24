@@ -79,6 +79,16 @@ O registo e login por email/palavra-passe estão ligados à API. O registo cria 
 
 A maioria dos endpoints operacionais recebe `workspaceId` na query ou body; as rotas de workspace usam-no no path. A autorização multi-tenant valida a membership no servidor em cada pedido.
 
+### Papéis
+
+| Papel | Pode |
+| --- | --- |
+| `VIEWER` | Apenas ler. |
+| `MEMBER` | Criar e editar rascunhos de workflows e agentes, conversar com a IA, gerar planos e lançar execuções. Os agentes que cria ficam em pausa. |
+| `ADMIN` / `OWNER` | Tudo o anterior, mais aprovar planos, ativar workflows e agentes, alterar workflows e agentes ativos, gerir integrações e equipa. |
+
+Os pedidos à IA (mensagens e planos) estão limitados por utilizador: `AI_RATE_LIMIT_PER_MINUTE` (20) e `AI_RATE_LIMIT_PER_DAY` (500). O limite é guardado em memória, por processo; com várias instâncias da API, usar um store Redis.
+
 ## Estado real vs. por configurar
 
 - **Implementado:** autenticação local, hash de password, refresh tokens rotativos, RBAC por workspace, persistência PostgreSQL, filas Redis/BullMQ, chat com fornecedor compatível com OpenAI, geração de plano e aprovação que cria workflow, logs e analytics básicos.
